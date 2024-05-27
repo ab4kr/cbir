@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search-it | Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../css/dashboard.css" />
+  </head>
+  <body>
+    <div class="container">
+      <section class="history-section">
+        <h3>Search History</h3>
+        <div class="history-container" id="history-container"></div>
+      </section>
+      <!-- THIS CODE IS ADDED WHEN EVERYTHING WAS WORKING -->
+      <div onclick="collapse()" class="collapse-btn-grp">
+        <div class="collapse-btn btn-upper"></div>
+        <div class="collapse-btn btn-lower"></div>
+      </div>
+      <!-- THE NEW CODE ENDS HERE -->
+      <section class="search-area">
+        <nav>
+          <p class="logo">Search<span class="dash">-</span>it</p>
+          <button onclick="logout()" class="logout-btn">Logout</button>
+        </nav>
+
+        <div class="form-container">
+          <form id="searchForm" role="search">
+            <input
+              type="text"
+              id="userInput"
+              name="query"
+              placeholder="Enter keyword to search"
+              aria-label="Search Images"
+              required
+            />
+            <button type="submit" id="searchButton">Search</button>
+          </form>
+          <p class="small-desc">
+            Start your search now and elevate your creative projects to new
+            heights!
+          </p>
+        </div>
+        <div id="preloader"></div>
+        <section id="imageContainer"></section>
+      </section>
+    </div>
+    <script src="../js/script.js"></script>
+    <script src="../js/scripts.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        let userData;
+
+        // Fetch user info from the server
+        fetch("/user-info")
+          .then((response) => {
+            if (response.ok) {
+              return response.json();
+            } else {
+              throw new Error("Not logged in");
+            }
+          })
+          .then((data) => {
+            userData = data;
+            console.log("User Data:", userData);
+            document.querySelector(".logo").innerHTML = `Welcome, ${data.name}`;
+
+            // Fetch and display search history
+            fetch("/get-history")
+              .then((response) => response.json())
+              .then((history) => {
+                console.log("Search History:", history);
+                const historyContainer =
+                  document.getElementById("history-container");
+                history.forEach((item) => {
+                  const div = document.createElement("div");
+                  div.classList.add("card");
+                  div.textContent = `${item.query} - ${new Date(
+                    item.created_at
+                  ).toLocaleString()}`;
+                  historyContainer.appendChild(div);
+                });
+              })
+              .catch((error) => {
+                console.error("Error fetching search history:", error);
+              });
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            window.location.href = "/html/signin.html";
+          });
+
+        // Add event listener to the search form
+        const searchForm = document.getElementById("searchForm");
+        if (searchForm) {
+          searchForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+            const query = document.getElementById("userInput").value.trim();
+
+            // Save the search history
+            fetch("/save-history", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ userId: userData.user_id, query }), // Corrected userId property
+            })
+              .then((response) => {
+                if (response.ok) {
+                  const historyContainer =
+                    document.getElementById("history-container");
+                  const div = document.createElement("div");
+                  div.classList.add("card");
+                  div.textContent = `${query} - ${new Date().toLocaleString()}`;
+                  historyContainer.appendChild(div);
+                  console.log("Search history saved successfully.");
+                } else {
+                  console.error("Failed to save search history.");
+                }
+              })
+              .catch((error) => {
+                console.error("Error saving search history:", error);
+              });
+
+            // Perform the search (you need to implement this part)
+            performSearch(query);
+          });
+        }
+      });
+
+      function performSearch(query) {
+        const search_query = document.getElementById("userInput").value;
+        fetchingDataFromPexels(search_query).then((images) => {
+          const imageContainer = document.getElementById("imageContainer");
+
+          // It resets the previous search result in UI
+          imageContainer.innerHTML = "";
+
+          images.map((image) => {
+            const img = document.createElement("img");
+            img.src = image.src.original;
+            img.className = "fetched-img";
+            imageContainer.appendChild(img);
+          });
+        });
+      }
+
+      // Logout function
+      function logout() {
+        fetch("/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => {
+            if (response.ok) {
+              window.location.href = "/html/signin.html";
+            } else {
+              console.error("Failed to logout");
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function collapse() {
+        const historySection = document.querySelector(".history-section");
+        const searchArea = document.querySelector(".search-area");
+        if (historySection.style.display == "flex") {
+          historySection.style.display = "none";
+          searchArea.style.width = "100%";
+        } else {
+          historySection.style.display = "flex";
+          searchArea.style.width = "80%";
+        }
+
+        // Trigger reflow to apply transition
+        setTimeout(() => {
+          searchArea.style.transition = "width 0.3s ease"; // Add transition property
+        }, 0);
+      }
+    </script>
+  </body>
+</html>
